@@ -2,40 +2,49 @@
 #include "DeformationGraph.h"
 
 
-DeformationGraph::DeformationGraph():n_nodes(0), n_edges(0), k_nearest(8){
+DeformationGraph::DeformationGraph()
+	:n_nodes(0),
+	 n_edges(0),
+	 k_nearest(1),
+	 /*e_rot(0),
+	 e_reg(0),
+	 e_con(0),*/
+	 w_rot(1),
+	 w_reg(1),
+	 w_con(1){
 	nodes = NULL;
 	edges = NULL;
 	rot = NULL;
 	trans = NULL;
-	e_rot = 0; e_reg = 0; e_con = 0;
-	w_rot = 1; w_reg = 1; w_con = 1;
 }
 
 
-DeformationGraph::DeformationGraph(int n_nodes, Node *nodes, int n_edges, bool **edges):n_nodes(n_nodes), n_edges(n_edges), k_nearest(8){
+DeformationGraph::DeformationGraph(int n_nodes, Node *nodes, int n_edges, bool **edges)
+	:n_nodes(n_nodes),
+	 n_edges(n_edges),
+	 k_nearest(1),
+	 /*e_rot(0),
+	 e_reg(0),
+	 e_con(0),*/
+	 w_rot(1),
+	 w_reg(1),
+	 w_con(1){
 	this->nodes = new Node[n_nodes];
 	this->edges = new bool*[n_nodes];
 	rot = new Rotation[n_nodes];
 	trans = new Translation[n_nodes];
 	for(int j=0; j<n_nodes; j++){
 		//initialize nodes
-		for(int i=0; i<3; i++)
-			this->nodes[j][i] = nodes[j][i];
+		for(int i=0; i<3; i++) this->nodes[j][i] = nodes[j][i];
 		//initialize edges
 		this->edges[j] = new bool[n_nodes];
-		for(int i=0; i<n_nodes; i++)
-			this->edges[j][i] = edges[j][i];
+		for(int i=0; i<n_nodes; i++) this->edges[j][i] = edges[j][i];
 		//initialize rotation matrixes
-		for(int i=0; i<9; i++)
-			rot[j][i] = 0.1;
+		for(int i=0; i<9; i++) rot[j][i] = 0.1;
 		rot[j][0] = 0.9; rot[j][4] = 0.9; rot[j][8] = 0.9;
 		//initialize translation vectors
-		for(int i=0; i<3; i++)
-			trans[j][i] = 0;
+		for(int i=0; i<3; i++) trans[j][i] = 0;
 	}
-	//initialize some values
-	e_rot = 0; e_reg = 0; e_con = 0;
-	w_rot = 1; w_reg = 1; w_con = 1;
 }
 
 
@@ -51,7 +60,7 @@ DeformationGraph::~DeformationGraph(){
 }
 
 
-void DeformationGraph::computeWeights(const double *vertex, double *weights, int *idx){
+void DeformationGraph::computeWeights(const double *vertex, double *weights, int *idx) const{
 	double *d = new double[n_nodes], temp[3], sum = 0;
 	int *index = new int[n_nodes], idx_min, t;
 	//find k+1-nearest nodes
@@ -93,7 +102,7 @@ void DeformationGraph::computeWeights(const double *vertex, double *weights, int
 }
 
 
-void DeformationGraph::predict(const double *input, double *output){
+void DeformationGraph::predict(const double *input, double *output) const{
 	output[0] = 0;output[1] = 0;output[2] = 0;
 	int *idx = new int[k_nearest+1];
 	double *weights=new double[k_nearest], temp[3];
@@ -114,7 +123,7 @@ void DeformationGraph::predict(const double *input, double *output){
 
 
 double DeformationGraph::Erot(){
-	e_rot = 0;
+	double e_rot = 0;
 	for(int j=0; j<n_nodes; j++){
 		e_rot += pow(rot[j][0]*rot[j][3]+rot[j][1]*rot[j][4]+rot[j][2]*rot[j][5],2);
 		e_rot += pow(rot[j][0]*rot[j][6]+rot[j][1]*rot[j][7]+rot[j][2]*rot[j][8],2);
@@ -128,8 +137,7 @@ double DeformationGraph::Erot(){
 
 
 double DeformationGraph::Ereg(){
-	double temp[3];
-	e_reg = 0;
+	double temp[3], e_reg = 0;
 	for(int j=0; j<n_nodes; j++){
 		for(int n=0; n<n_nodes; n++){
 			if(edges[j][n]){
@@ -143,7 +151,7 @@ double DeformationGraph::Ereg(){
 	return e_reg;
 }
 
-double DeformationGraph::Ereg(int j, int n, double *e){
+/*double DeformationGraph::Ereg(int j, int n, double *e){
 	double e_reg = 0, temp[3];
 	for(int i=0; i<3; i++) e[i] = 0;
 	for(int i=0; i<3; i++)
@@ -153,12 +161,11 @@ double DeformationGraph::Ereg(int j, int n, double *e){
 		e_reg += e[i]*e[i];
 	}
 	return sqrt(e_reg);
-}
+}*/
 
 
 double DeformationGraph::Econ(const int p, double **v, double **q){
-	double _v[3];
-	e_con = 0;
+	double _v[3], e_con = 0;
 	for(int l=0; l<p; l++){
 		predict(v[l],_v);
 		for(int i=0; i<3; i++) e_con += pow(_v[i]-q[l][i],2);
