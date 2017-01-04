@@ -1,11 +1,10 @@
 #include <cmath>
 #include "DeformationGraph.h"
-//#include "testTools.h"
 
 
 void computef(const DeformationGraph &dg, int &p, double **v, double **q, OutputArray f){
 	double _v[3];
-	int idx = 0, count = 0;
+	int idx = 0;
 	Mat fx = Mat::zeros(6*dg.n_nodes+6*dg.n_edges+3*p,1,CV_64F);
 	//Erot
 	for(int j=0; j<dg.n_nodes; j++){
@@ -95,26 +94,28 @@ double F(DeformationGraph &dg, Mat &x, int p, double **v, double **q){
 		for(int i=0; i<9; ++i) dg.rot[j][i] = x.at<double>(12*j+i);
 		for(int i=0; i<3; ++i) dg.trans[j][i] = x.at<double>(12*j+i+9);
 	}
-	//for testing
-	/*std::cout<<"Erot: "<<dg.Erot()<<'\n';
-	std::cout<<"Ereg: "<<dg.Ereg()<<'\n';
-	std::cout<<"Econ: "<<dg.Econ(p,v,q)<<'\n';*/
-	//for testing
-	return dg.w_rot*dg.Erot()+dg.w_reg*dg.Ereg()+dg.w_con*dg.Econ(p,v,q);
+	double e_rot = dg.Erot();
+	double e_reg = dg.Ereg();
+	double e_con = dg.Econ(p,v,q);
+	std::cout<<"Erot = "<<e_rot<<'\n'
+			 <<"Ereg = "<<e_reg<<'\n'
+			 <<"Econ = "<<e_con<<'\n';
+	return dg.w_rot*e_rot+dg.w_reg*e_reg+dg.w_con*e_con;
 }
 
 
 void gaussNewton(DeformationGraph &dg, int p, double **v, double **q){
 	const double epsilon = 0.0000001;
 	double Fk=0, Fk1;
+	int iter_times = 10;
 	Mat f,J,h,x(12*dg.n_nodes,1,CV_64F);
 	for(int j=0; j<dg.n_nodes; j++){
 		for(int i=0; i<9; i++) x.at<double>(i+j*12) = dg.rot[j][i];
 		for(int i=0; i<3; i++) x.at<double>(i+9+j*12) = dg.trans[j][i];
 	}
 	Fk1 = F(dg,x,p,v,q);
-	for(int iter_count=0; (iter_count<20)&&(abs(Fk1-Fk) >= epsilon*(1+Fk1)); ++iter_count){
-		std::cout<<"iteration "<<iter_count<<": "<<Fk1<<'\n';
+	for(int iter_count=0; (iter_count<iter_times)&&(abs(Fk1-Fk) >= epsilon*(1+Fk1)); ++iter_count){
+		std::cout<<"iteration "<<iter_count<<": E = "<<Fk1<<'\n';
 		Fk = Fk1;
 		computef(dg,p,v,q,f);
 		computeJ(dg,p,v,q,J);
@@ -123,9 +124,6 @@ void gaussNewton(DeformationGraph &dg, int p, double **v, double **q){
 		JtJ += 0.00000001*I;
 		bool check = solve(JtJ,-J.t()*f,h,DECOMP_CHOLESKY);
 		if(!check){ std::cerr<<"solve linear system of equations failed!\n"; break; }
-		//for debugging
-		//printfx("C:\\Users\\Administrator\\Desktop\\myFace100\\Resource Files\\testing result\\x_Erot_Econ.txt",x,iter_count);
-		//for debugging
 		x += h;
 		Fk1 = F(dg,x,p,v,q);
 	}
